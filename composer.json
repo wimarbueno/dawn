@@ -1,0 +1,23 @@
+{
+    "name": "styde/dawn",
+    "description": "Browser kit testing for Laravel 5.4, compatible with Laravel Dusk",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Duilio Palacios",
+            "email": "duilio@styde.net"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.5.9",
+        "symfony/css-selector": "~3.1",
+        "symfony/dom-crawler": "~3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Styde\\Dawn\\": "src/"
+        }
+    }
+}
