@@ -3,6 +3,7 @@
 namespace Styde\Dawn\Concerns;
 
 use Closure;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Illuminate\Http\UploadedFile;
 use Symfony\Component\DomCrawler\Form;
@@ -33,7 +34,7 @@ trait InteractsWithPages
     {
         $files = $this->convertUploadsForTesting($form, $uploads);
 
-        return $this->testCase->makeRequest(
+        return $this->test->makeRequest(
             $form->getMethod(), $form->getUri(), $this->extractParametersFromForm($form), [], $files
         );
     }
@@ -59,7 +60,7 @@ trait InteractsWithPages
     protected function followRedirects()
     {
         while ($this->response->isRedirect()) {
-            $this->testCase->makeRequest('GET', $this->response->getTargetUrl());
+            $this->test->makeRequest('GET', $this->response->getTargetUrl());
         }
 
         return $this;
@@ -87,8 +88,12 @@ trait InteractsWithPages
      */
     public function assertPathIs($uri)
     {
+        if (! Str::startsWith($uri, 'http')) {
+            $uri = config('app.url').'/'.ltrim($uri, '/');
+        }
+
         PHPUnit::assertEquals(
-            $uri, parse_url($this->currentUri)['path'],
+            $uri, $this->currentUri,
             "Did not land on expected page [{$uri}].\n"
         );
 
@@ -99,7 +104,7 @@ trait InteractsWithPages
      * Assert that the current page matches a given named route.
      *
      * @param  string  $route
-     * @param  array  $parameters
+     * @param  array|mixed  $parameters
      * @return $this
      */
     public function assertRouteIs($route, $parameters = [])
@@ -186,26 +191,47 @@ trait InteractsWithPages
     }
 
     /**
-     * Assert that a given string is seen on the current HTML.
+     * Assert that a given string is seen on the current text.
      *
      * @param  string  $text
-     * @param  bool  $negate
      * @return $this
      */
-    public function assertSee($text, $negate = false)
+    public function assertSee($text)
     {
-        return $this->assertInPage(new HasSource($text), $negate);
+        return $this->assertInPage(new HasText($text));
     }
 
     /**
-     * Assert that a given string is not seen on the current HTML.
+     * Assert that a given string is not seen on the current text.
      *
      * @param  string  $text
      * @return $this
      */
-    public function dontSee($text)
+    public function assertDontSee($text)
     {
-        return $this->assertInPage(new HasSource($text), true);
+        return $this->assertInPage(new HasText($text), true);
+    }
+
+    /**
+     * Assert that a given string is present on the current HTML.
+     *
+     * @param  string  $code
+     * @return $this
+     */
+    public function assertSourceHas($code)
+    {
+        return $this->assertInPage(new HasSource($code));
+    }
+
+    /**
+     * Assert that a given string is not present on the current HTML.
+     *
+     * @param  string  $code
+     * @return $this
+     */
+    public function assertSourceMissing($code)
+    {
+        return $this->assertInPage(new HasText($code), true);
     }
 
     /**
@@ -216,7 +242,7 @@ trait InteractsWithPages
      * @param  bool  $negate
      * @return $this
      */
-    public function seeElement($selector, array $attributes = [], $negate = false)
+    public function assertElement($selector, array $attributes = [], $negate = false)
     {
         return $this->assertInPage(new HasElement($selector, $attributes), $negate);
     }
@@ -228,32 +254,9 @@ trait InteractsWithPages
      * @param  array  $attributes
      * @return $this
      */
-    public function dontSeeElement($selector, array $attributes = [])
+    public function assertElementMissing($selector, array $attributes = [])
     {
         return $this->assertInPage(new HasElement($selector, $attributes), true);
-    }
-
-    /**
-     * Assert that a given string is seen on the current text.
-     *
-     * @param  string  $text
-     * @param  bool  $negate
-     * @return $this
-     */
-    public function seeText($text, $negate = false)
-    {
-        return $this->assertInPage(new HasText($text), $negate);
-    }
-
-    /**
-     * Assert that a given string is not seen on the current text.
-     *
-     * @param  string  $text
-     * @return $this
-     */
-    public function dontSeeText($text)
-    {
-        return $this->assertInPage(new HasText($text), true);
     }
 
     /**
@@ -261,12 +264,11 @@ trait InteractsWithPages
      *
      * @param  string  $element
      * @param  string  $text
-     * @param  bool  $negate
      * @return $this
      */
-    public function assertSeeIn($element, $text, $negate = false)
+    public function assertSeeIn($element, $text)
     {
-        return $this->assertInPage(new HasInElement($element, $text), $negate);
+        return $this->assertInPage(new HasInElement($element, $text));
     }
 
     /**
@@ -276,7 +278,7 @@ trait InteractsWithPages
      * @param  string  $text
      * @return $this
      */
-    public function dontSeeInElement($element, $text)
+    public function assertDontSeeIn($element, $text)
     {
         return $this->assertInPage(new HasInElement($element, $text), true);
     }
@@ -286,12 +288,11 @@ trait InteractsWithPages
      *
      * @param  string $text
      * @param  string|null $url
-     * @param  bool  $negate
      * @return $this
      */
-    public function seeLink($text, $url = null, $negate = false)
+    public function assertSeeLink($text, $url = null)
     {
-        return $this->assertInPage(new HasLink($text, $url), $negate);
+        return $this->assertInPage(new HasLink($text, $url));
     }
 
     /**
@@ -301,7 +302,7 @@ trait InteractsWithPages
      * @param  string|null  $url
      * @return $this
      */
-    public function dontSeeLink($text, $url = null)
+    public function assertDontSeeLink($text, $url = null)
     {
         return $this->assertInPage(new HasLink($text, $url), true);
     }
@@ -311,12 +312,11 @@ trait InteractsWithPages
      *
      * @param  string  $selector
      * @param  string  $expected
-     * @param  bool  $negate
      * @return $this
      */
-    public function seeInField($selector, $expected, $negate = false)
+    public function assertInputValue($selector, $expected)
     {
-        return $this->assertInPage(new HasValue($selector, $expected), $negate);
+        return $this->assertInPage(new HasValue($selector, $expected));
     }
 
     /**
@@ -326,7 +326,7 @@ trait InteractsWithPages
      * @param  string  $value
      * @return $this
      */
-    public function dontSeeInField($selector, $value)
+    public function assertInputValueIsNot($selector, $value)
     {
         return $this->assertInPage(new HasValue($selector, $value), true);
     }
@@ -336,12 +336,11 @@ trait InteractsWithPages
      *
      * @param  string  $selector
      * @param  string  $value
-     * @param  bool  $negate
      * @return $this
      */
-    public function seeIsSelected($selector, $value, $negate = false)
+    public function assertSelected($selector, $value)
     {
-        return $this->assertInPage(new IsSelected($selector, $value), $negate);
+        return $this->assertInPage(new IsSelected($selector, $value));
     }
 
     /**
@@ -351,7 +350,7 @@ trait InteractsWithPages
      * @param  string  $value
      * @return $this
      */
-    public function dontSeeIsSelected($selector, $value)
+    public function assertNotSelected($selector, $value)
     {
         return $this->assertInPage(new IsSelected($selector, $value), true);
     }
@@ -360,12 +359,11 @@ trait InteractsWithPages
      * Assert that the given checkbox is selected.
      *
      * @param  string  $selector
-     * @param  bool  $negate
      * @return $this
      */
-    public function seeIsChecked($selector, $negate = false)
+    public function assertChecked($selector)
     {
-        return $this->assertInPage(new IsChecked($selector), $negate);
+        return $this->assertInPage(new IsChecked($selector));
     }
 
     /**
@@ -374,7 +372,7 @@ trait InteractsWithPages
      * @param  string  $selector
      * @return $this
      */
-    public function dontSeeIsChecked($selector)
+    public function assertNotChecked($selector)
     {
         return $this->assertInPage(new IsChecked($selector), true);
     }
@@ -401,9 +399,7 @@ trait InteractsWithPages
             }
         }
 
-        $this->visit($link->link()->getUri());
-
-        return $this;
+        return $this->test->visit($link->link()->getUri());
     }
 
     /**

@@ -22,7 +22,7 @@ class TestResponse extends FoundationTestResponse
      *
      * @var \Illuminate\Foundation\Testing
      */
-    protected $testCase;
+    protected $test;
 
     /**
      * The current URL being viewed.
@@ -74,7 +74,7 @@ class TestResponse extends FoundationTestResponse
 
         $this->currentUri = $currentUri;
 
-        $this->testCase = $testCase;
+        $this->test = $testCase;
 
         return $this;
     }
