@@ -2,9 +2,11 @@
 
 Testing the idea of having a browser kit testing for laravel 5.4 with an API similar to the one provided by Laravel Dusk
 
-# Usage:
+# Installation:
 
-Include the trait `Styde\Dawn\SupportsBrowserKit` in your `TestCase` class:
+Install the package by executing `composer require "styde/dawn=dev-master"` in the console.
+
+Then include the trait `Styde\Dawn\SupportsBrowserKit` in your `TestCase` class, for example:
 
 ```
 <?php
